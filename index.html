@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortnite AI Commentator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Using the stable TMI.js script -->
+    <script src="https://cdn.jsdelivr.net/gh/InfinitePlayers/tmi@main/tmi.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #e6e6e6;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+        .neon-text {
+            color: #38bdf8; /* Tailwind sky-400 */
+            text-shadow: 0 0 5px rgba(56, 189, 248, 0.7), 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        .btn-primary {
+            background-color: #10b981; /* Tailwind emerald-500 */
+            color: #0d1117;
+            font-weight: bold;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: #059669; /* Tailwind emerald-600 */
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #2563eb; /* blue-600 */
+        }
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background-color: #dc2626; /* red-600 */
+        }
+        .commentary-output {
+            background-color: #1f2a37;
+            border-left: 5px solid #38bdf8;
+            padding: 1rem;
+            min-height: 80px;
+            transition: all 0.3s ease;
+        }
+        .scene-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background-color: #1f2a37;
+        }
+        .game-screen-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.5rem;
+        }
+        .pulsing {
+            animation: pulse-border 1.5s infinite alternate;
+        }
+        @keyframes pulse-border {
+            from { border-color: #38bdf8; box-shadow: 0 0 5px #38bdf8; }
+            to { border-color: #10b981; box-shadow: 0 0 15px #10b981; }
+        }
+        /* No audio meter for SpeechSynthesis */
+        .audio-meter-container { display: none; }
+
+        .caster-box-active {
+            border-color: #10b981 !important; /* Green */
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+        .caster-box-chat {
+             border-color: #f59e0b !important; /* Amber */
+             box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        .caster-box-error {
+            border-left-color: #ef4444 !important; /* red-500 */
+        }
+        /* Twitch Chat Box */
+        #chat-feed-box {
+            background-color: #0d1117;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #30363d;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+        }
+        #chat-feed-box p {
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+        }
+        #chat-feed-box p:last-child {
+            margin-bottom: 0;
+        }
+        .chat-username {
+            font-weight: 700;
+        }
+        /* Twitch Status */
+        .status-disconnected {
+            color: #ef4444; /* red-500 */
+            font-weight: bold;
+        }
+        .status-connecting {
+            color: #f59e0b; /* amber-500 */
+            font-weight: bold;
+        }
+        .status-connected {
+            color: #10b981; /* emerald-500 */
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div id="app" class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Setup & Twitch -->
+        <div class="lg:col-span-1 space-y-6">
+            <header class="text-center">
+                <h1 class="text-4xl sm:text-5xl font-extrabold neon-text">AI Fortnite Caster</h1>
+                <p class="text-lg text-gray-400 mt-2">Stable Single-Commentator</p>
+            </header>
+
+            <!-- Setup Card -->
+            <div id="setup-card" class="card rounded-xl p-4 space-y-4">
+                <h2 class="text-xl font-bold text-gray-300 mb-2">Streaming Setup</h2>
+                
+                <!-- Device Setup -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="video-input-select" class="block text-sm font-medium text-gray-400 mb-1">Camera / Game Feed</label>
+                        <select id="video-input-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600"></select>
+                    </div>
+                    <div>
+                        <label for="audio-output-select" class="block text-sm font-medium text-gray-400 mb-1">Audio Output (OBS Capture)</label>
+                        <select id="audio-output-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600"></select>
+                    </div>
+                </div>
+
+                <!-- Game Settings -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="game-mode-select" class="block text-sm font-medium text-gray-400 mb-1">Game Mode</label>
+                        <select id="game-mode-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
+                            <option value="builds">Normal (Builds)</option>
+                            <option value="zero_build">Zero Build</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="caster-voice-select" class="block text-sm font-medium text-gray-400 mb-1">Commentator Voice (Browser)</label>
+                        <select id="caster-voice-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
+                            <option value="">Loading voices...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4 pt-2">
+                    <button id="activate-camera-btn" class="btn-secondary p-3 rounded-lg shadow-lg flex-1 flex items-center justify-center gap-2" onclick="activateCamera()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M1,5c0-1.1,0.9-2,2-2h14c1.1,0,2,0.9,2,2v10c0,1.1-0.9,2-2,2H3c-1.1,0-2-0.9-2-2V5z M4,14h12V6H4V14z M8.5,8C9.3,8,10,8.7,10,9.5S9.3,11,8.5,11S7,10.3,7,9.5S7.7,8,8.5,8z"/></svg>
+                        Activate Camera
+                    </button>
+                    <button id="test-audio-btn" class="btn-secondary p-3 rounded-lg shadow-lg flex-1 flex items-center justify-center gap-2" onclick="testAudio()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M7.7,3.1C8.1,2.7,8.7,2.7,9.1,3.1L11.6,5.6c0.4,0.4,0.4,1,0,1.4C11.4,7.2,11,7.2,10.6,6.9L8.4,4.7L6.2,6.9C6,7.2,5.4,7.2,5.1,6.9c-0.4-0.4-0.4-1,0-1.4L7.7,3.1z M12.3,16.9c-0.4,0.4-1,0.4-1.4,0L8.4,14.4c-0.4-0.4-0.4-1,0-1.4C8.6,12.8,9,12.8,9.4,13.1l2.1,2.1l2.1-2.1c0.4-0.4,1-0.4,1.4,0c0.4,0.4,0.4,1,0,1.4L12.3,16.9z"/></svg>
+                        Test Audio
+                    </button>
+                </div>
+            </div>
+
+            <!-- Twitch Chat Card -->
+            <div id="twitch-card" class="card rounded-xl p-4 space-y-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-bold text-gray-300">Twitch Chat Integration</h2>
+                    <!-- Status Indicator -->
+                    <p id="twitch-status" class="status-disconnected text-sm">Status: Disconnected</p>
+                </div>
+                <div>
+                    <label for="twitch-channel-input" class="block text-sm font-medium text-gray-400 mb-1">Twitch Channel Name</label>
+                    <input type="text" id="twitch-channel-input" placeholder="e.g., your_channel_name" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
+                </div>
+                <!-- Button is disabled by default until TMI.js is loaded -->
+                <button id="twitch-connect-btn" class="btn-secondary w-full p-3 rounded-lg shadow-lg" onclick="toggleTwitchConnection()" disabled>
+                    Connect to Twitch Chat
+                </button>
+                <div id="chat-feed-box">
+                    <p class="italic text-gray-500">Twitch chat messages will appear here...</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Game & Commentary -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Game Container -->
+            <div id="game-container" class="card rounded-xl p-4 space-y-4">
+                <div class="scene-container rounded-lg overflow-hidden border-4 border-sky-400" id="image-frame-container">
+                    <video id="game-screen-video" class="game-screen-video" autoplay playsinline muted></video>
+                    <!-- Audio Meter Removed -->
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button id="start-btn" class="btn-primary p-3 rounded-lg shadow-lg flex-1 flex items-center justify-center gap-2" onclick="startStream()" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M7.02,3.93C7.45,3.67,8,3.9,8,4.39V15.61c0,0.49-0.55,0.72-0.98,0.46L2.1,12.43c-0.38-0.23-0.6-0.65-0.6-1.11V8.69c0-0.46,0.22-0.88,0.6-1.11L7.02,3.93z M10,4.39V15.61c0,0.49,0.55,0.72,0.98,0.46l4.9-3.63c0.38-0.23,0.6-0.65,0.6-1.11V8.69c0-0.46-0.22-0.88-0.6-1.11L10.98,3.93C10.55,3.67,10,3.9,10,4.39z" clip-rule="evenodd" /></svg>
+                        START LIVE COMMENTARY
+                    </button>
+                    <button id="stop-btn" class="btn-danger p-3 rounded-lg shadow-lg flex-1 flex items-center justify-center gap-2" onclick="stopStream()" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M8.5,3C9.3,3,10,3.7,10,4.5V15.5C10,16.3,9.3,17,8.5,17h-0.8C6.8,17,6,16.3,6,15.5V4.5C6,3.7,6.8,3,7.8,3H8.5z M12.3,3C13.1,3,13.8,3.7,13.8,4.5V15.5C13.8,16.3,13.1,17,12.3,17h-0.8c-0.9,0-1.7-0.7-1.7-1.5V4.5C10.8,3.7,11.5,3,12.3,3H12.3z" clip-rule="evenodd" /></svg>
+                        STOP STREAM
+                    </button>
+                </div>
+            </div>
+
+            <!-- Commentary Card -->
+            <div id="commentary-card" class="card rounded-xl p-4">
+                <div id="caster-box" class="commentary-output">
+                    <h3 class="font-bold text-sky-300 mb-2">Hype Caster Says:</h3>
+                    <p id="commentary-text" class="text-xl italic text-gray-300">Awaiting stream start...</p>
+                    <div id="loading-indicator" class="hidden flex items-center space-x-2 mt-2">
+                        <div class="w-3 h-3 bg-sky-400 rounded-full animate-pulse"></div>
+                        <span class="text-xs text-sky-300">Caster thinking...</span>
+                    </div>
+                </div>
+                <!-- Audio Player is no longer needed or visible -->
+                <!-- <audio id="audio-player" class="w-full mt-4 hidden" controls></audio> -->
+            </div>
+        </div>
+        
+        <canvas id="hidden-canvas" style="display: none;"></canvas>
+    </div>
+
+    <script type="module">
+        // --- Global State ---
+        let isStreaming = false;
+        let isCameraActive = false;
+        // let isSpeaking = false; // No longer needed, can check window.speechSynthesis.speaking
+        let mediaStream = null;
+        let gameLoopId = null; // ID for the gameplay loop
+        let chatLoopId = null; // ID for the chat reaction loop
+        let audioLoopId = null; // ID for the audio playback loop
+        let currentFocusAreaIndex = 0;
+        const FOCUS_AREAS = ["Action and Health", "Movement and Strategy", "Loot and Building/Cover"];
+        const TEST_AUDIO_TEXT = "This is a quick audio test. Sound path confirmed.";
+        const GAME_LOOP_DELAY = 4000; // Analyze game every 4 seconds
+        const CHAT_LOOP_DELAY = 30000; // React to chat every 30 seconds
+        const AUDIO_LOOP_DELAY = 250; // Check audio queue 4x/sec
+
+        // --- Decoupled Audio State ---
+        let audioQueue = []; // Unified queue for ALL speech
+        let isAudioLoopRunning = false;
+        let systemVoices = []; // To store browser voices
+
+        // --- Twitch State ---
+        let twitchClient = null; // Using TMI.js client
+        let chatMessageHistory = []; // To store safe chat messages
+        const PROFANITY_FILTER = ["damn", "hell", "jerk", "stupid"]; // Simple filter
+
+        // --- DOM Elements ---
+        const gameScreenVideo = document.getElementById('game-screen-video');
+        // const audioPlayer = document.getElementById('audio-player'); // No longer used
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const activateCameraBtn = document.getElementById('activate-camera-btn');
+        const imageFrameContainer = document.getElementById('image-frame-container');
+        const videoSelect = document.getElementById('video-input-select');
+        const audioSelect = document.getElementById('audio-output-select');
+        const gameModeSelect = document.getElementById('game-mode-select');
+        const casterVoiceSelect = document.getElementById('caster-voice-select');
+        const hiddenCanvas = document.getElementById('hidden-canvas');
+        // const audioMeterBar = document.getElementById('audio-meter-bar'); // No longer used
+        const commentaryText = document.getElementById('commentary-text');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const casterBox = document.getElementById('caster-box');
+        const twitchChannelInput = document.getElementById('twitch-channel-input');
+        const twitchConnectBtn = document.getElementById('twitch-connect-btn');
+        const chatFeedBox = document.getElementById('chat-feed-box');
+        const twitchStatus = document.getElementById('twitch-status');
+
+        // --- Commentator Definitions ---
+        // REMOVED: CASTER_VOICES, now using browser voices
+
+        const FORTNITE_CONTEXT = `
+            About Fortnite: This is a fast-paced Battle Royale game.
+            - Health: Players have a green Health bar and a blue Shield bar. "Cracked" means shields are broken.
+            - Storm: A purple storm closes in, forcing players into a smaller circle.
+            - Loot: Players find weapons of different rarities (Gray, Green, Blue, Purple, Gold).
+            - Victory Royale: The last player or team standing wins.
+        `;
+
+        // --- Initialization ---
+        window.onload = initializeApplication;
+
+        function initializeApplication() {
+            populateDeviceLists(); // Run device list population
+            loadBrowserVoices(); // NEW: Load browser voices
+
+            // Poll to check if TMI.js is loaded
+            const tmiCheckInterval = setInterval(() => {
+                if (typeof window.tmi !== 'undefined' && window.tmi.Client) { 
+                    clearInterval(tmiCheckInterval); // Stop checking
+                    twitchConnectBtn.disabled = false; // Enable the button
+                    console.log("TMI.js is loaded and ready.");
+                }
+            }, 250); // Check every 250ms
+        }
+        
+        // --- NEW: Browser Voice Loading ---
+        function loadBrowserVoices() {
+            function populateVoiceList() {
+                systemVoices = window.speechSynthesis.getVoices();
+                casterVoiceSelect.innerHTML = '';
+                
+                if (systemVoices.length === 0) {
+                     casterVoiceSelect.innerHTML = '<option value="">No voices found</option>';
+                     return;
+                }
+
+                const englishVoices = systemVoices.filter(voice => voice.lang.includes('en'));
+
+                englishVoices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    option.setAttribute('data-lang', voice.lang);
+                    option.setAttribute('data-name', voice.name);
+                    casterVoiceSelect.appendChild(option);
+                });
+                
+                // Try to load saved voice
+                const savedVoiceName = localStorage.getItem('fortniteCasterVoice');
+                if (savedVoiceName && englishVoices.some(v => v.name === savedVoiceName)) {
+                    casterVoiceSelect.value = englishVoices.find(v => v.name === savedVoiceName).name;
+                } else if (englishVoices.length > 0) {
+                    // Default to a good UK or US voice if available
+                    let defaultVoice = englishVoices.find(v => v.lang === 'en-GB') || englishVoices.find(v => v.lang === 'en-US') || englishVoices[0];
+                    casterVoiceSelect.value = defaultVoice.name;
+                }
+                
+                casterVoiceSelect.onchange = () => {
+                    const selectedVoice = casterVoiceSelect.options[casterVoiceSelect.selectedIndex];
+                    localStorage.setItem('fortniteCasterVoice', selectedVoice.getAttribute('data-name'));
+                };
+            }
+
+            populateVoiceList();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = populateVoiceList;
+            }
+        }
+
+
+        // --- Device and Settings Persistence ---
+        function loadSettings() {
+            // Note: Voice loading is now handled by loadBrowserVoices()
+            const savedVideo = localStorage.getItem('fortniteCasterVideo');
+            const savedAudio = localStorage.getItem('fortniteCasterAudio');
+            // const savedVoice = localStorage.getItem('fortniteCasterVoice'); // Handled in loadBrowserVoices
+            const savedGameMode = localStorage.getItem('fortniteCasterGameMode') || 'builds';
+            const savedTwitchChannel = localStorage.getItem('fortniteCasterTwitchChannel');
+
+            if (savedVideo && Array.from(videoSelect.options).some(opt => opt.value === savedVideo)) {
+                videoSelect.value = savedVideo;
+            }
+            if (savedAudio && Array.from(audioSelect.options).some(opt => opt.value === savedAudio)) {
+                audioSelect.value = savedAudio;
+            }
+            if (savedTwitchChannel) {
+                twitchChannelInput.value = savedTwitchChannel;
+            }
+            
+            gameModeSelect.value = savedGameMode;
+
+            videoSelect.onchange = () => localStorage.setItem('fortniteCasterVideo', videoSelect.value);
+            audioSelect.onchange = () => {
+                localStorage.setItem('fortniteCasterAudio', audioSelect.value);
+                // We can't actually route SpeechSynthesis to a specific output device.
+                // This dropdown is now just for user reference / potential future use.
+            };
+            // casterVoiceSelect.onchange handled in loadBrowserVoices
+            gameModeSelect.onchange = () => localStorage.setItem('fortniteCasterGameMode', gameModeSelect.value);
+            twitchChannelInput.onchange = () => localStorage.setItem('fortniteCasterTwitchChannel', twitchChannelInput.value);
+        }
+
+        async function populateDeviceLists() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                
+                videoSelect.innerHTML = '<option value="">-- Select Camera/Screen --</option>';
+                audioSelect.innerHTML = '<option value="">-- System Default --</option>';
+
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Unknown ${device.kind}`;
+
+                    if (device.kind === 'videoinput') {
+                        videoSelect.appendChild(option);
+                    } else if (device.kind === 'audiooutput') {
+                        // Note: SpeechSynthesis API doesn't respect this.
+                        audioSelect.appendChild(option);
+                    }
+                });
+                loadSettings();
+            } catch (err) {
+                console.error("Error enumerating devices:", err);
+                videoSelect.innerHTML = '<option value="">Permission required</option>';
+                audioSelect.innerHTML = '<option value="">Permission required</option>';
+            }
+        }
+
+        // --- Camera and Audio Control ---
+        window.activateCamera = async function() {
+            const videoDeviceId = videoSelect.value;
+            if (!videoDeviceId) {
+                alert("Please select a video input source first.");
+                return;
+            }
+
+            try {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+                
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: videoDeviceId },
+                    audio: false
+                });
+                gameScreenVideo.srcObject = mediaStream;
+                await gameScreenVideo.play();
+                isCameraActive = true;
+                startBtn.disabled = false;
+                activateCameraBtn.disabled = true;
+                activateCameraBtn.textContent = 'Camera Active';
+                imageFrameContainer.classList.add('pulsing');
+            } catch (error) {
+                console.error("Error activating camera:", error);
+                alert(`Failed to start video stream: ${error.message}. Check browser permissions or try a different camera.`);
+                isCameraActive = false;
+            }
+        }
+
+        window.testAudio = async function() {
+            if (window.speechSynthesis.speaking) return; 
+            
+            casterBox.classList.remove('caster-box-error');
+            commentaryText.textContent = "Playing test sound...";
+
+            try {
+                await playTextWithSpeechSynthesis(TEST_AUDIO_TEXT);
+                commentaryText.textContent = "Test sound played. Check your audio output.";
+            } catch (error) {
+                console.error("Audio test failed:", error);
+                commentaryText.textContent = `[ERROR] Audio test failed. ${error.message}`;
+                casterBox.classList.add('caster-box-error');
+            }
+        }
+
+        // --- TMI.js Twitch Chat ---
+        window.toggleTwitchConnection = function() {
+            if (typeof tmi === 'undefined' || !tmi.Client) {
+                alert("TMI.js library is still loading. Please wait a moment.");
+                return;
+            }
+
+            if (twitchClient && twitchClient.readyState() === "OPEN") {
+                // Disconnect
+                twitchClient.disconnect();
+            } else {
+                // Connect
+                const channelName = twitchChannelInput.value.trim().toLowerCase();
+                if (!channelName) {
+                    alert("Please enter a Twitch channel name.");
+                    return;
+                }
+                
+                twitchChannelInput.disabled = true;
+                twitchConnectBtn.textContent = "Connecting...";
+                twitchConnectBtn.disabled = true;
+                twitchStatus.textContent = "Status: Connecting...";
+                twitchStatus.className = "status-connecting text-sm";
+                chatFeedBox.innerHTML = '';
+                addChatMessageToFeed(null, `Connecting to #${channelName}...`, "#ffffff");
+
+                twitchClient = new window.tmi.Client({
+                    options: { debug: false },
+                    channels: [ channelName ]
+                });
+
+                twitchClient.on('connected', () => {
+                    console.log("Twitch client connected");
+                    twitchConnectBtn.textContent = "Disconnect from Chat";
+                    twitchConnectBtn.classList.remove("btn-secondary");
+                    twitchConnectBtn.classList.add("btn-danger");
+                    twitchConnectBtn.disabled = false;
+                    addChatMessageToFeed(null, `Successfully connected to #${channelName}!`, "#10b981");
+                    twitchStatus.textContent = "Status: Connected";
+                    twitchStatus.className = "status-connected text-sm";
+                });
+
+                twitchClient.on('message', (channel, tags, message, self) => {
+                    const lowerMessage = message.toLowerCase();
+                    const isInappropriate = PROFANITY_FILTER.some(word => lowerMessage.includes(word));
+                    if (isInappropriate) {
+                        console.log(`Filtered inappropriate message from ${tags['display-name']}`);
+                        return;
+                    }
+                    addChatMessageToFeed(tags['display-name'], message, tags.color);
+                    
+                    if (tags['display-name']) {
+                        chatMessageHistory.push(`${tags['display-name']}: ${message}`);
+                        if (chatMessageHistory.length > 15) { // Keep history capped
+                            chatMessageHistory.shift();
+                        }
+                    }
+                });
+                
+                twitchClient.on('disconnected', (reason) => {
+                    console.log("Twitch client disconnected");
+                    addChatMessageToFeed(null, `Disconnected from Twitch. ${reason || ''}`, "#ef4444");
+                    twitchStatus.textContent = "Status: Disconnected";
+                    twitchStatus.className = "status-disconnected text-sm";
+                    twitchConnectBtn.textContent = "Connect to Twitch Chat";
+                    twitchConnectBtn.classList.remove("btn-danger");
+                    twitchConnectBtn.classList.add("btn-secondary");
+                    twitchConnectBtn.disabled = false;
+                    twitchChannelInput.disabled = false;
+                    twitchClient = null;
+                });
+
+                twitchClient.connect().catch(err => {
+                    console.error("Twitch connection error:", err);
+                    addChatMessageToFeed(null, `Failed to connect: ${err}`, "#ef4444");
+                    twitchStatus.textContent = "Status: Failed";
+                    twitchStatus.className = "status-disconnected text-sm";
+                    twitchConnectBtn.textContent = "Connect to Twitch Chat";
+                    twitchConnectBtn.disabled = false;
+                    twitchChannelInput.disabled = false;
+                    twitchClient = null;
+                });
+            }
+        }
+
+        function addChatMessageToFeed(username, message, color) {
+            const chatLine = document.createElement('p');
+            
+            if (username) {
+                const usernameSpan = document.createElement('span');
+                usernameSpan.className = 'chat-username';
+                usernameSpan.style.color = color || '#ffffff';
+                usernameSpan.textContent = `${username}: `;
+                chatLine.appendChild(usernameSpan);
+            } else {
+                chatLine.style.fontStyle = 'italic';
+                chatLine.style.color = color || '#888888';
+            }
+
+            chatLine.appendChild(document.createTextNode(message));
+            chatFeedBox.appendChild(chatLine);
+            chatFeedBox.scrollTop = chatFeedBox.scrollHeight;
+        }
+
+
+        // --- Stream Control (Decoupled Loops, Instant Speech) ---
+        window.startStream = async function() {
+            if (isStreaming || !isCameraActive) return;
+
+            // Wake up audio context on user gesture
+            // This is a good failsafe for all browser audio
+            try {
+                // A small "pop" to wake the audio system
+                window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+            } catch (e) {
+                console.error("SpeechSynthesis resume failed:", e);
+                alert("Could not start audio. Please click the page and try again.");
+                return;
+            }
+            
+            isStreaming = true;
+            isAudioLoopRunning = true; // Enable the audio loop
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            casterBox.classList.remove('caster-box-error');
+            commentaryText.textContent = "Stream started. Analyzing first frame...";
+            
+            // Start all three independent loops
+            runGameLoop();
+            runAudioLoop();
+            runChatReactionLoop();
+        }
+        
+        // Game analysis loop (Fast)
+        async function runGameLoop() {
+            if (!isStreaming) return; 
+
+            try {
+                await processFrameForCommentary();
+            } catch (error) {
+                console.error("Error in Game Loop:", error);
+                if (error.message.startsWith("FATAL_AUTH_ERROR")) {
+                    commentaryText.textContent = `[FATAL ERROR] ${error.message}. Stream stopped.`;
+                    casterBox.classList.add('caster-box-error');
+                    stopStream(); 
+                    return; 
+                } else {
+                    commentaryText.textContent = `[ERROR] ${error.message}`;
+                    casterBox.classList.add('caster-box-error');
+                }
+            }
+
+            if (isStreaming) {
+                gameLoopId = setTimeout(runGameLoop, GAME_LOOP_DELAY);
+            }
+        }
+
+        // Chat analysis loop (Slow)
+        async function runChatReactionLoop() {
+            if (!isStreaming) return; 
+
+            try {
+                // Only run if chat is connected and has messages
+                if (twitchClient && twitchClient.readyState() === "OPEN" && chatMessageHistory.length > 0) {
+                    await processChatReaction();
+                }
+            } catch (error) {
+                console.error("Error in Chat Loop:", error);
+                commentaryText.textContent = `[CHAT AI ERROR] ${error.message}`;
+                casterBox.classList.add('caster-box-error');
+            }
+
+            if (isStreaming) {
+                chatLoopId = setTimeout(runChatReactionLoop, CHAT_LOOP_DELAY); 
+            }
+        }
+
+        // Unified audio player loop (Fast Check)
+        async function runAudioLoop() {
+            if (!isAudioLoopRunning) return;
+
+            // Use browser's built-in check
+            if (audioQueue.length > 0 && !window.speechSynthesis.speaking) {
+                const { text, source } = audioQueue.shift(); 
+                
+                try {
+                    // Show text and style *just before* speaking
+                    commentaryText.textContent = text;
+                    casterBox.classList.remove('caster-box-error');
+                    if (source === 'chat') {
+                        casterBox.classList.add('caster-box-chat');
+                    } else {
+                        casterBox.classList.add('caster-box-active');
+                    }
+                
+                    await playTextWithSpeechSynthesis(text);
+
+                } catch (error) {
+                    console.error("Error in Audio Loop (Speech):", error);
+                    commentaryText.textContent = `[SPEECH ERROR] ${error.message}`;
+                    casterBox.classList.add('caster-box-error');
+                    // Don't stop the whole stream for a speech error
+                } 
+                // Don't use 'finally' here, let the onend event handle class removal
+            }
+            
+            // Schedule next check
+            if (isAudioLoopRunning) {
+                audioLoopId = setTimeout(runAudioLoop, AUDIO_LOOP_DELAY); 
+            }
+        }
+
+        window.stopStream = function() {
+            if (!isStreaming) return;
+            
+            isStreaming = false;
+            isAudioLoopRunning = false;
+            if (gameLoopId) clearTimeout(gameLoopId);
+            if (chatLoopId) clearTimeout(chatLoopId); 
+            if (audioLoopId) clearTimeout(audioLoopId);
+
+            // Force stop any speaking
+            window.speechSynthesis.cancel();
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            commentaryText.textContent = "Stream stopped. Camera feed is still active.";
+            loadingIndicator.classList.add('hidden');
+            casterBox.classList.remove('caster-box-active', 'caster-box-chat');
+            
+            audioQueue = [];
+            chatMessageHistory = [];
+        }
+
+        // --- Core Processors ---
+        async function processFrameForCommentary() {
+            if (window.speechSynthesis.speaking) return; // Don't get new text if AI is already talking
+            
+            loadingIndicator.classList.remove('hidden');
+            casterBox.classList.remove('caster-box-error');
+            
+            const base64Image = captureFrame();
+            if (!base64Image) {
+                loadingIndicator.classList.add('hidden');
+                throw new Error("Could not capture frame.");
+            }
+
+            const gameMode = gameModeSelect.value;
+            const focusArea = FOCUS_AREAS[currentFocusAreaIndex];
+            currentFocusAreaIndex = (currentFocusAreaIndex + 1) % FOCUS_AREAS.length;
+
+            loadingIndicator.classList.remove('hidden'); // Show loading
+            const commentary = await generateCommentary(base64Image, gameMode, focusArea);
+            loadingIndicator.classList.add('hidden'); // Hide loading
+            
+            if (commentary.text) {
+                audioQueue.push({ text: commentary.text, source: 'game' });
+            }
+        }
+
+        async function processChatReaction() {
+            const chatMessages = chatMessageHistory.join('\n');
+            chatMessageHistory = []; // Clear history
+            
+            const reactionText = await generateChatReaction(chatMessages);
+            
+            if (reactionText) {
+                audioQueue.push({ text: reactionText, source: 'chat' });
+            }
+        }
+
+
+        function captureFrame() {
+            try {
+                hiddenCanvas.width = gameScreenVideo.videoWidth;
+                hiddenCanvas.height = gameScreenVideo.videoHeight;
+                const ctx = hiddenCanvas.getContext('2d');
+                ctx.drawImage(gameScreenVideo, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                return hiddenCanvas.toDataURL('image/jpeg', 0.7);
+            } catch (e) {
+                console.error("Frame capture error:", e);
+                return null;
+            }
+        }
+
+        // --- NEW: Instant Audio Function ---
+        async function playTextWithSpeechSynthesis(textToSpeak) {
+            return new Promise((resolve, reject) => {
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
+
+                // Find the selected voice
+                const selectedVoiceName = casterVoiceSelect.options[casterVoiceSelect.selectedIndex]?.getAttribute('data-name');
+                if (selectedVoiceName) {
+                    const voice = systemVoices.find(v => v.name === selectedVoiceName);
+                    if (voice) {
+                        utterance.voice = voice;
+                    }
+                }
+                
+                // Set parameters for a more energetic voice
+                utterance.pitch = 1.2;
+                utterance.rate = 1.1;
+
+                utterance.onend = () => {
+                    casterBox.classList.remove('caster-box-active', 'caster-box-chat');
+                    resolve();
+                };
+                utterance.onerror = (e) => {
+                    console.error("SpeechSynthesis error:", e);
+                    casterBox.classList.remove('caster-box-active', 'caster-box-chat');
+                    reject(new Error(`SpeechSynthesis error: ${e.error}`));
+                };
+
+                window.speechSynthesis.speak(utterance);
+            });
+        }
+
+
+        // --- Gemini API Functions ---
+        function getCasterSystemPrompt(gameMode, focusArea) {
+            const gameModeContext = gameMode === 'builds' 
+                ? "Players can build structures (walls, ramps) for defense. Building skill is critical."
+                : "This is ZERO BUILD mode. Players cannot build. Focus on natural cover, positioning, and aim.";
+            
+            let focusInstruction = "";
+            switch (focusArea) {
+                case "Action and Health":
+                    focusInstruction = "React to the fight! Is he winning or in danger? Call out eliminations with hype! If he's low health, build the tension! What's the *impact* of this moment?";
+                    break;
+                case "Movement and Strategy":
+                    focusInstruction = "Is this a smart rotation? Is he taking high ground? Or is this a huge mistake? Call it like you see it! Is the storm a threat? What's the *intent*?";
+                    break;
+                case "Loot and Building/Cover":
+                    focusInstruction = gameMode === 'builds'
+                        ? "Is he a fast builder? Is that good defense? What's the *purpose* of that build?"
+                        : "Is he using cover well? Did he just find a game-changing weapon? What's the *quality* of his position?";
+                    break;
+            }
+
+            return `
+                You are an e-sports entertainer and commentator for Fortnite.
+                Your tone is electric, fast-paced, and you have a strong, fun personality.
+                **CRITICAL RULE:** Never state the obvious. Do NOT describe simple actions like 'running' or 'reloading'. Your audience can see that. Your job is to call the *impact*, the *intent*, and the *risk*. Be opinionated.
+                ${FORTNITE_CONTEXT}
+                CURRENT GAME MODE: ${gameModeContext}
+                YOUR CURRENT FOCUS: ${focusInstruction}
+                Keep your commentary extremely short and punchy (10-15 words MAX).
+                Respond ONLY with the commentary text.
+            `;
+        }
+
+        function getChatSystemPrompt(messages) {
+            return `
+                You are an AI streamer assistant and co-host.
+                The following are recent messages from the Twitch chat.
+                Your job is to briefly (10-15 words MAX) and positively react to the *overall sentiment* of the chat.
+                Do NOT read individual messages or user names.
+                Be fun, engaging, and acknowledge the chat's energy.
+                
+                [RECENT CHAT MESSAGES]:
+                ${messages}
+                
+                Respond ONLY with your reaction.
+                Example (if chat is hyped): "Wow, chat is going absolutely wild right now!"
+                Example (if chat is asking questions): "Chat is asking some great questions! Keep 'em coming!"
+                Example (if chat is spamming emotes): "I see that emote spam! The hype is real!"
+            `;
+        }
+
+        async function generateCommentary(base64Image, gameMode, focusArea) {
+            const systemPrompt = getCasterSystemPrompt(gameMode, focusArea);
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent`;
+
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            {
+                                inlineData: {
+                                    mimeType: 'image/jpeg',
+                                    data: base64Image.split(',')[1]
+                                }
+                            },
+                            { text: "Analyze this frame." }
+                        ]
+                    }
+                ],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`Vision HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    return { text };
+                } else {
+                    return { text: null };
+                }
+            } catch (error) {
+                console.error("Gemini Commentary API Call Failed:", error);
+                if (error.message.includes("status: 401") || error.message.includes("status: 403")) {
+                    throw new Error(`FATAL_AUTH_ERROR: ${error.message}`);
+                }
+                throw error;
+            }
+        }
+
+        async function generateChatReaction(messages) {
+            const systemPrompt = getChatSystemPrompt(messages);
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent`;
+
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [ { text: "React to these chat messages." } ]
+                    }
+                ],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`Chat AI HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                return text || null;
+            } catch (error) {
+                console.error("Gemini Chat Reaction API Call Failed:", error);
+                if (error.message.includes("status: 401") || error.message.includes("status: 403")) {
+                    throw new Error(`FATAL_AUTH_ERROR: ${error.message}`);
+                }
+                throw error;
+            }
+        }
+        
+        // REMOVED: generateAndPlayTTS
+        // REMOVED: pcmToWav and helper functions
+
+    </script>
+</body>
+</html>
