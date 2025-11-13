@@ -255,8 +255,8 @@
                             <!-- Tooltip End -->
                         </label>
                         <select id="game-mode-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
-                            <option value="builds">Normal (Builds)</option>
                             <option value="zero_build">Zero Build</option>
+                            <option value="builds">Normal (Builds)</option>
                         </select>
                     </div>
                     <div>
@@ -650,20 +650,29 @@
                     twitchStatus.className = "status-connected text-sm";
                 });
 
+                // "Bomb-proof" message handler
                 twitchClient.on('message', (channel, tags, message, self) => {
-                    const lowerMessage = message.toLowerCase();
-                    const isInappropriate = PROFANITY_FILTER.some(word => lowerMessage.includes(word));
-                    if (isInappropriate) {
-                        console.log(`Filtered inappropriate message from ${tags['display-name']}`);
-                        return;
-                    }
-                    addChatMessageToFeed(tags['display-name'], message, tags.color);
+                    // Ignore bot's own messages
+                    if (self) return; 
                     
-                    if (tags['display-name']) {
+                    // "Bomb-proof" check: Only process valid user chat messages
+                    if (tags && tags['display-name']) {
+                        const lowerMessage = message.toLowerCase();
+                        const isInappropriate = PROFANITY_FILTER.some(word => lowerMessage.includes(word));
+                        if (isInappropriate) {
+                            console.log(`Filtered inappropriate message from ${tags['display-name']}`);
+                            return;
+                        }
+                        
+                        addChatMessageToFeed(tags['display-name'], message, tags.color);
+                        
                         chatMessageHistory.push(`${tags['display-name']}: ${message}`);
                         if (chatMessageHistory.length > 15) {
                             chatMessageHistory.shift();
                         }
+                    } else {
+                        // Safely ignore system messages (joins, parts, etc.)
+                        console.log("Ignoring system message:", message);
                     }
                 });
                 
@@ -694,6 +703,9 @@
         }
 
         function addChatMessageToFeed(username, message, color) {
+            // Check if chat box is scrolled to the bottom
+            const isScrolledToBottom = chatFeedBox.scrollHeight - chatFeedBox.clientHeight <= chatFeedBox.scrollTop + 1;
+
             const chatLine = document.createElement('p');
             
             if (username) {
@@ -709,7 +721,11 @@
 
             chatLine.appendChild(document.createTextNode(message));
             chatFeedBox.appendChild(chatLine);
-            chatFeedBox.scrollTop = chatFeedBox.scrollHeight;
+            
+            // Auto-scroll only if user was already at the bottom
+            if(isScrolledToBottom) {
+                chatFeedBox.scrollTop = chatFeedBox.scrollHeight;
+            }
         }
 
         // --- Speech-to-Text (STT) ---
@@ -803,8 +819,7 @@
                 return;
             }
             
-            // This is the fix for the `no-speech` error.
-            // We must ask for permission *again* right before starting.
+            // "Bomb-proof" permission check
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
                     // We don't need to *use* the stream, just get permission.
@@ -854,7 +869,6 @@
             isAudioLoopRunning = true;
             startBtn.disabled = true;
             stopBtn.disabled = false;
-            // Don't enable mic button, it's independent
             
             casterBox.classList.remove('caster-box-error');
             commentaryText.textContent = "Stream started. Analyzing first frame...";
@@ -946,8 +960,6 @@
             if (gameLoopId) clearTimeout(gameLoopId);
             if (chatLoopId) clearTimeout(chatLoopId); 
             if (audioLoopId) clearTimeout(audioLoopId);
-
-            // Note: We don't stop the STT (mic) loop, it's independent
             
             window.speechSynthesis.cancel();
             
