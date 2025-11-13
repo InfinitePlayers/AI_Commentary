@@ -141,6 +141,30 @@
             color: #10b981; /* emerald-500 */
             font-weight: bold;
         }
+        /* Tooltip styles */
+        .info-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 8px;
+            width: max-content;
+            max-width: 250px;
+            padding: 8px;
+            font-size: 0.75rem;
+            color: white;
+            background-color: #1f2a37; /* Use a dark background */
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+            pointer-events: none; /* So it doesn't block hover */
+        }
+        .relative:hover .info-tooltip {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen p-4">
@@ -158,36 +182,95 @@
                 <h2 class="text-xl font-bold text-gray-300 mb-2">Streaming Setup</h2>
                 
                 <div>
-                    <label for="api-key-input" class="block text-sm font-medium text-gray-400 mb-1">Gemini API Key</label>
+                    <label for="api-key-input" class="block text-sm font-medium text-gray-400 mb-1 flex items-center gap-1">
+                        <span>Gemini API Key</span>
+                        <!-- Tooltip Start -->
+                        <div class="relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                            <span class="info-tooltip">
+                                Your private API key from Google AI Studio. This is saved *only* in your browser and is never shared.
+                            </span>
+                        </div>
+                        <!-- Tooltip End -->
+                    </label>
                     <input type="password" id="api-key-input" placeholder="Enter your Gemini API key" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
                     <p class="text-xs text-gray-500 mt-1">Your key is saved locally to your browser and never shared.</p>
-                    <!-- ADDED THIS LINK -->
                     <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-sky-400 hover:text-sky-300 transition-colors duration-200">Get your free Gemini API key here</a>
                 </div>
 
                 <!-- Device Setup -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-4">
                     <div>
-                        <label for="video-input-select" class="block text-sm font-medium text-gray-400 mb-1">Camera / Game Feed</label>
-                        <select id="video-input-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600"></select>
+                        <label for="video-input-select" class="block text-sm font-medium text-gray-400 mb-1 flex items-center gap-1">
+                            <span>Camera / Game Feed</span>
+                            <!-- Tooltip Start -->
+                            <div class="relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                                <span class="info-tooltip">
+                                    Select your OBS Virtual Camera or screen capture source. Click 'Activate' to see the feed.
+                                </span>
+                            </div>
+                            <!-- Tooltip End -->
+                        </label>
+                        <div class="flex gap-2">
+                            <select id="video-input-select" class="w-full flex-1 p-2 rounded-md bg-gray-700 text-white border border-gray-600"></select>
+                            <button id="activate-camera-btn" class="btn-secondary p-2 rounded-lg shadow-lg" onclick="activateCamera()">
+                                Activate
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <label for="audio-output-select" class="block text-sm font-medium text-gray-400 mb-1">Audio Output (OBS Capture)</label>
-                        <select id="audio-output-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600"></select>
+                    
+                    <div class="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                        <h4 class="text-sm font-bold text-sky-300 mb-2 flex items-center gap-1">
+                            <span>Pro Tip for OBS Audio</span>
+                            <!-- Tooltip Start -->
+                            <div class="relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                                <span class="info-tooltip">
+                                    This app uses your browser's "instant" speech. It will always play on your system's default audio output. This method ensures OBS captures it.
+                                </span>
+                            </div>
+                            <!-- Tooltip End -->
+                        </h4>
+                        <p class="text-xs text-gray-400 leading-relaxed">
+                            This app's audio plays from Chrome. The easiest way to capture it in OBS is:
+                            <br><strong>On Windows:</strong> Add a new `Application Audio Capture` source and select Chrome.
+                            <br><strong>On macOS:</strong> Add a new `macOS Screen Capture` source, set Mode to `Window Capture`, and choose this Chrome tab.
+                        </p>
                     </div>
                 </div>
 
                 <!-- Game Settings -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="game-mode-select" class="block text-sm font-medium text-gray-400 mb-1">Game Mode</label>
+                        <label for="game-mode-select" class="block text-sm font-medium text-gray-400 mb-1 flex items-center gap-1">
+                            <span>Game Mode</span>
+                            <!-- Tooltip Start -->
+                            <div class="relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                                <span class="info-tooltip">
+                                    Tells the AI whether to comment on building ('Builds') or just cover ('Zero Build'). This improves commentary.
+                                </span>
+                            </div>
+                            <!-- Tooltip End -->
+                        </label>
                         <select id="game-mode-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
                             <option value="builds">Normal (Builds)</option>
                             <option value="zero_build">Zero Build</option>
                         </select>
                     </div>
                     <div>
-                        <label for="caster-voice-select" class="block text-sm font-medium text-gray-400 mb-1">Commentator Voice (Browser)</label>
+                        <label for="caster-voice-select" class="block text-sm font-medium text-gray-400 mb-1 flex items-center gap-1">
+                           <span>Commentator Voice</span>
+                            <!-- Tooltip Start -->
+                            <div class="relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                                <span class="info-tooltip">
+                                    Selects the browser's built-in voice for the AI. This provides 'instant' audio with no network lag.
+                                </span>
+                            </div>
+                            <!-- Tooltip End -->
+                        </label>
                         <select id="caster-voice-select" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
                             <option value="">Loading voices...</option>
                         </select>
@@ -195,23 +278,27 @@
                 </div>
 
                 <!-- Control Buttons -->
-                <div class="flex flex-col sm:flex-row gap-4 pt-2">
-                    <button id="activate-camera-btn" class="btn-secondary p-3 rounded-lg shadow-lg flex-1 flex items-center justify-center gap-2" onclick="activateCamera()">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M1,5c0-1.1,0.9-2,2-2h14c1.1,0,2,0.9,2,2v10c0,1.1-0.9,2-2,2H3c-1.1,0-2-0.9-2-2V5z M4,14h12V6H4V14z M8.5,8C9.3,8,10,8.7,10,9.5S9.3,11,8.5,11S7,10.3,7,9.5S7.7,8,8.5,8z"/></svg>
-                        Activate Camera
-                    </button>
-                    <button id="test-audio-btn" class="btn-secondary p-3 rounded-lg shadow-lg flex-1 flex items-center justify-center gap-2" onclick="testAudio()">
+                <div class="pt-2 space-y-4">
+                    <button id="test-audio-btn" class="btn-secondary p-3 rounded-lg shadow-lg w-full flex items-center justify-center gap-2" onclick="testAudio()">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M7.7,3.1C8.1,2.7,8.7,2.7,9.1,3.1L11.6,5.6c0.4,0.4,0.4,1,0,1.4C11.4,7.2,11,7.2,10.6,6.9L8.4,4.7L6.2,6.9C6,7.2,5.4,7.2,5.1,6.9c-0.4-0.4-0.4-1,0-1.4L7.7,3.1z M12.3,16.9c-0.4,0.4-1,0.4-1.4,0L8.4,14.4c-0.4-0.4-0.4-1,0-1.4C8.6,12.8,9,12.8,9.4,13.1l2.1,2.1l2.1-2.1c0.4-0.4,1-0.4,1.4,0c0.4,0.4,0.4,1,0,1.4L12.3,16.9z"/></svg>
                         Test Audio
                     </button>
-                </div>
-                <div class="pt-2">
-                     <button id="mic-toggle-btn" class="btn-secondary w-full p-3 rounded-lg shadow-lg flex items-center justify-center gap-2" onclick="toggleMicListening()">
+                    
+                    <button id="mic-toggle-btn" class="btn-secondary w-full p-3 rounded-lg shadow-lg flex items-center justify-center gap-2" onclick="toggleMicListening()">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M7.5 3a4.5 4.5 0 0 1 4.981 4.195c.023.217.023.438.002.651l.002-.002a5.002 5.002 0 0 1-2.06 4.152L10 11.83l.06-.03a4.5 4.5 0 0 1 5.712-2.318c.51.188.98.45 1.402.774A6.5 6.5 0 0 0 10 1.5a6.5 6.5 0 0 0-6.48 6.074c.33-.207.69-.373 1.08-.501A4.5 4.5 0 0 1 7.5 3zM2 10a8 8 0 0 1 8-8 8 8 0 0 1 8 8c0 2.663-1.3 5.053-3.32 6.481l-.004.003L14.5 18H5.5l-1.178-1.517-.004-.003A8.002 8.002 0 0 1 2 10z"/></svg>
                         Start Listening to Mic
                     </button>
-                    <!-- STT Mic Selection Removed - Replaced with explanatory text -->
-                    <p id="mic-status" class="text-xs text-center text-gray-500 mt-1">Mic is Idle. (Uses System Default Input)</p>
+                    <div class="flex items-center justify-center gap-1">
+                        <p id="mic-status" class="text-xs text-center text-gray-500">Mic is Idle. (Uses System Default Input)</p>
+                        <!-- Tooltip Start -->
+                        <div class="relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                            <span class="info-tooltip">
+                                The Speech-to-Text (STT) *always* uses your 'System Default' mic. Set this in your Mac/PC settings.
+                            </span>
+                        </div>
+                        <!-- Tooltip End -->
+                    </div>
                 </div>
             </div>
 
@@ -222,7 +309,17 @@
                     <p id="twitch-status" class="status-disconnected text-sm">Status: Disconnected</p>
                 </div>
                 <div>
-                    <label for="twitch-channel-input" class="block text-sm font-medium text-gray-400 mb-1">Twitch Channel Name</label>
+                    <label for="twitch-channel-input" class="block text-sm font-medium text-gray-400 mb-1 flex items-center gap-1">
+                        <span>Twitch Channel Name</span>
+                        <!-- Tooltip Start -->
+                        <div class="relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-500 cursor-pointer"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 1 1h1a1 1 0 1 0 0-2v-3a1 1 0 0 0-1-1H9Z" clip-rule="evenodd" /></svg>
+                            <span class="info-tooltip">
+                                The AI will read and react to the *sentiment* of your Twitch chat.
+                            </span>
+                        </div>
+                        <!-- Tooltip End -->
+                    </label>
                     <input type="text" id="twitch-channel-input" placeholder="e.g., your_channel_name" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
                 </div>
                 <button id="twitch-connect-btn" class="btn-secondary w-full p-3 rounded-lg shadow-lg" onclick="toggleTwitchConnection()" disabled>
@@ -312,10 +409,9 @@
         const startBtn = document.getElementById('start-btn');
         const stopBtn = document.getElementById('stop-btn');
         const activateCameraBtn = document.getElementById('activate-camera-btn');
+        const testAudioBtn = document.getElementById('test-audio-btn');
         const imageFrameContainer = document.getElementById('image-frame-container');
         const videoSelect = document.getElementById('video-input-select');
-        const audioSelect = document.getElementById('audio-output-select');
-        // const micInputSelect = document.getElementById('mic-input-select'); // Removed
         const gameModeSelect = document.getElementById('game-mode-select');
         const casterVoiceSelect = document.getElementById('caster-voice-select');
         const hiddenCanvas = document.getElementById('hidden-canvas');
@@ -416,20 +512,12 @@
             }
 
             const savedVideo = localStorage.getItem('fortniteCasterVideo');
-            const savedAudio = localStorage.getItem('fortniteCasterAudio');
-            // const savedMic = localStorage.getItem('fortniteCasterMic'); // Removed
-            const savedGameMode = localStorage.getItem('fortniteCasterGameMode') || 'builds';
+            const savedGameMode = localStorage.getItem('fortniteCasterGameMode') || 'zero_build'; // DEFAULT TO ZERO BUILD
             const savedTwitchChannel = localStorage.getItem('fortniteCasterTwitchChannel');
 
             if (savedVideo && Array.from(videoSelect.options).some(opt => opt.value === savedVideo)) {
                 videoSelect.value = savedVideo;
             }
-            if (savedAudio && Array.from(audioSelect.options).some(opt => opt.value === savedAudio)) {
-                audioSelect.value = savedAudio;
-            }
-            // if (savedMic && Array.from(micInputSelect.options).some(opt => opt.value === savedMic)) { // Removed
-            //     micInputSelect.value = savedMic;
-            // }
             if (savedTwitchChannel) {
                 twitchChannelInput.value = savedTwitchChannel;
             }
@@ -442,8 +530,6 @@
             };
 
             videoSelect.onchange = () => localStorage.setItem('fortniteCasterVideo', videoSelect.value);
-            audioSelect.onchange = () => localStorage.setItem('fortniteCasterAudio', audioSelect.value);
-            // micInputSelect.onchange = () => localStorage.setItem('fortniteCasterMic', micInputSelect.value); // Removed
             gameModeSelect.onchange = () => localStorage.setItem('fortniteCasterGameMode', gameModeSelect.value);
             twitchChannelInput.onchange = () => localStorage.setItem('fortniteCasterTwitchChannel', twitchChannelInput.value);
         }
@@ -455,8 +541,6 @@
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 
                 videoSelect.innerHTML = '<option value="">-- Select Camera/Screen --</option>';
-                audioSelect.innerHTML = '<option value="">-- System Default --</option>';
-                // micInputSelect.innerHTML = '<option value="">-- Select Microphone --</option>'; // Removed
 
                 devices.forEach(device => {
                     const option = document.createElement('option');
@@ -465,13 +549,7 @@
 
                     if (device.kind === 'videoinput') {
                         videoSelect.appendChild(option);
-                    } else if (device.kind === 'audiooutput') {
-                        audioSelect.appendChild(option);
-                    } 
-                    // We no longer populate the mic list as it's not usable by STT
-                    // else if (device.kind === 'audioinput') {
-                    //     micInputSelect.appendChild(option);
-                    // }
+                    }
                 });
                 loadSettings();
             } catch (err) {
@@ -480,8 +558,6 @@
                     alert("Permissions for camera and microphone are required to use this app.");
                 }
                 videoSelect.innerHTML = '<option value="">Permission required</option>';
-                audioSelect.innerHTML = '<option value="">Permission required</option>';
-                // micInputSelect.innerHTML = '<option value="">Permission required</option>'; // Removed
             }
         }
 
@@ -507,7 +583,9 @@
                 isCameraActive = true;
                 startBtn.disabled = false;
                 activateCameraBtn.disabled = true;
-                activateCameraBtn.textContent = 'Camera Active';
+                activateCameraBtn.textContent = 'Active';
+                activateCameraBtn.classList.remove('btn-secondary');
+                activateCameraBtn.classList.add('btn-primary'); // Change color to green
                 imageFrameContainer.classList.add('pulsing');
             } catch (error) {
                 console.error("Error activating camera:", error);
@@ -679,6 +757,12 @@
                     console.log("STT: No speech detected, will restart if needed.");
                     // This is normal, STT will restart on 'onend' if userWantsToListen
                     return; 
+                }
+                
+                // "not-allowed" is a fatal permission error
+                if (event.error === 'not-allowed') {
+                     alert("Mic permission denied. STT cannot start.");
+                     userWantsToListen = false; // Stop trying to restart
                 }
 
                 console.error("Speech recognition error:", event.error);
@@ -968,8 +1052,6 @@
                 
                 // Note: We cannot route browser speech synth to a specific audio output.
                 // It will *always* use the system/browser default audio output.
-                // The "Audio Output" dropdown is only for reference or for apps
-                // that use <audio> elements (which we are not, for speed).
                 
                 utterance.pitch = 1.2;
                 utterance.rate = 1.1;
