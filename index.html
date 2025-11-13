@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fortnite AI Commentator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Using the stable TMI.js script -->
+    <!-- Using the stable TMI.js script from your example -->
     <script src="https://cdn.jsdelivr.net/gh/InfinitePlayers/tmi@main/tmi.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -85,16 +85,28 @@
             from { border-color: #38bdf8; box-shadow: 0 0 5px #38bdf8; }
             to { border-color: #10b981; box-shadow: 0 0 15px #10b981; }
         }
-        .caster-box-active {
+        .caster-box-active { /* Game */
             border-color: #10b981 !important; /* Green */
             box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
         }
-        .caster-box-chat {
+        .caster-box-chat { /* Chat */
              border-color: #f59e0b !important; /* Amber */
              box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
         }
+        .caster-box-streamer { /* Mic */
+             border-color: #a855f7 !important; /* Purple */
+             box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+        }
         .caster-box-error {
             border-left-color: #ef4444 !important; /* red-500 */
+        }
+        /* STT Output Box */
+        .stt-output {
+            background-color: #1f2a37;
+            border-left: 5px solid #a855f7; /* Purple */
+            padding: 1rem;
+            min-height: 60px;
+            font-style: italic;
         }
         /* Twitch Chat Box */
         #chat-feed-box {
@@ -137,7 +149,7 @@
         <!-- Left Column: Setup & Twitch -->
         <div class="lg:col-span-1 space-y-6">
             <header class="text-center">
-                <h1 class="text-4xl sm:text-5xl font-extrabold neon-text">AI Fortnite Caster V2</h1>
+                <h1 class="text-4xl sm:text-5xl font-extrabold neon-text">AI Fortnite Caster</h1>
                 <p class="text-lg text-gray-400 mt-2">Stable Single-Commentator</p>
             </header>
 
@@ -145,7 +157,6 @@
             <div id="setup-card" class="card rounded-xl p-4 space-y-4">
                 <h2 class="text-xl font-bold text-gray-300 mb-2">Streaming Setup</h2>
                 
-                <!-- NEW: API Key Input -->
                 <div>
                     <label for="api-key-input" class="block text-sm font-medium text-gray-400 mb-1">Gemini API Key</label>
                     <input type="password" id="api-key-input" placeholder="Enter your Gemini API key" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
@@ -192,20 +203,26 @@
                         Test Audio
                     </button>
                 </div>
+                <div class="pt-2">
+                     <button id="mic-toggle-btn" class="btn-secondary w-full p-3 rounded-lg shadow-lg flex items-center justify-center gap-2" onclick="toggleMicListening()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M7.5 3a4.5 4.5 0 0 1 4.981 4.195c.023.217.023.438.002.651l.002-.002a5.002 5.002 0 0 1-2.06 4.152L10 11.83l.06-.03a4.5 4.5 0 0 1 5.712-2.318c.51.188.98.45 1.402.774A6.5 6.5 0 0 0 10 1.5a6.5 6.5 0 0 0-6.48 6.074c.33-.207.69-.373 1.08-.501A4.5 4.5 0 0 1 7.5 3zM2 10a8 8 0 0 1 8-8 8 8 0 0 1 8 8c0 2.663-1.3 5.053-3.32 6.481l-.004.003L14.5 18H5.5l-1.178-1.517-.004-.003A8.002 8.002 0 0 1 2 10z"/></svg>
+                        Start Listening to Mic
+                    </button>
+                    <!-- STT Mic Selection Removed - Replaced with explanatory text -->
+                    <p id="mic-status" class="text-xs text-center text-gray-500 mt-1">Mic is Idle. (Uses System Default Input)</p>
+                </div>
             </div>
 
             <!-- Twitch Chat Card -->
             <div id="twitch-card" class="card rounded-xl p-4 space-y-4">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-xl font-bold text-gray-300">Twitch Chat Integration</h2>
-                    <!-- Status Indicator -->
                     <p id="twitch-status" class="status-disconnected text-sm">Status: Disconnected</p>
                 </div>
                 <div>
                     <label for="twitch-channel-input" class="block text-sm font-medium text-gray-400 mb-1">Twitch Channel Name</label>
                     <input type="text" id="twitch-channel-input" placeholder="e.g., your_channel_name" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600">
                 </div>
-                <!-- Button is disabled by default until TMI.js is loaded -->
                 <button id="twitch-connect-btn" class="btn-secondary w-full p-3 rounded-lg shadow-lg" onclick="toggleTwitchConnection()" disabled>
                     Connect to Twitch Chat
                 </button>
@@ -237,7 +254,7 @@
             </div>
 
             <!-- Commentary Card -->
-            <div id="commentary-card" class="card rounded-xl p-4">
+            <div id="commentary-card" class="card rounded-xl p-4 space-y-4">
                 <div id="caster-box" class="commentary-output">
                     <h3 class="font-bold text-sky-300 mb-2">Hype Caster Says:</h3>
                     <p id="commentary-text" class="text-xl italic text-gray-300">Awaiting stream start...</p>
@@ -246,13 +263,18 @@
                         <span class="text-xs text-sky-300">Caster thinking...</span>
                     </div>
                 </div>
+                <!-- STT Output Box -->
+                <div id="stt-box" class="stt-output">
+                    <h3 class="font-bold text-purple-300 mb-2">Your Mic (STT):</h3>
+                    <p id="stt-text" class="text-lg italic text-gray-400">...</p>
+                </div>
             </div>
         </div>
         
         <canvas id="hidden-canvas" style="display: none;"></canvas>
     </div>
 
-    <script type(="module")>
+    <script type="module">
         // --- Global State ---
         let isStreaming = false;
         let isCameraActive = false;
@@ -263,10 +285,10 @@
         let currentFocusAreaIndex = 0;
         const FOCUS_AREAS = ["Action and Health", "Movement and Strategy", "Loot and Building/Cover"];
         const TEST_AUDIO_TEXT = "This is a quick audio test. Sound path confirmed.";
-        const GAME_LOOP_DELAY = 4000;
-        const CHAT_LOOP_DELAY = 30000;
-        const AUDIO_LOOP_DELAY = 250;
-        let currentApiKey = ""; // NEW: To hold the key
+        const GAME_LOOP_DELAY = 4000; // 4 seconds
+        const CHAT_LOOP_DELAY = 30000; // 30 seconds
+        const AUDIO_LOOP_DELAY = 250; // 4 times per second
+        let currentApiKey = "";
 
         // --- Decoupled Audio State ---
         let audioQueue = [];
@@ -276,7 +298,12 @@
         // --- Twitch State ---
         let twitchClient = null;
         let chatMessageHistory = [];
-        const PROFANITY_FILTER = ["damn", "hell", "jerk", "stupid"];
+        const PROFANITY_FILTER = ["damn", "hell", "jerk", "stupid"]; // Simple example filter
+
+        // --- Speech-to-Text (STT) State ---
+        let speechRecognition = null;
+        let userWantsToListen = false; // The user's intended state
+        let isListeningToMic = false; // The actual state of the API
 
         // --- DOM Elements ---
         const gameScreenVideo = document.getElementById('game-screen-video');
@@ -286,17 +313,21 @@
         const imageFrameContainer = document.getElementById('image-frame-container');
         const videoSelect = document.getElementById('video-input-select');
         const audioSelect = document.getElementById('audio-output-select');
+        // const micInputSelect = document.getElementById('mic-input-select'); // Removed
         const gameModeSelect = document.getElementById('game-mode-select');
         const casterVoiceSelect = document.getElementById('caster-voice-select');
         const hiddenCanvas = document.getElementById('hidden-canvas');
         const commentaryText = document.getElementById('commentary-text');
         const loadingIndicator = document.getElementById('loading-indicator');
         const casterBox = document.getElementById('caster-box');
+        const sttText = document.getElementById('stt-text'); // STT output
         const twitchChannelInput = document.getElementById('twitch-channel-input');
         const twitchConnectBtn = document.getElementById('twitch-connect-btn');
         const chatFeedBox = document.getElementById('chat-feed-box');
         const twitchStatus = document.getElementById('twitch-status');
-        const apiKeyInput = document.getElementById('api-key-input'); // NEW: API Key Input
+        const apiKeyInput = document.getElementById('api-key-input');
+        const micToggleBtn = document.getElementById('mic-toggle-btn');
+        const micStatus = document.getElementById('mic-status');
 
         // --- Commentator Definitions ---
         const FORTNITE_CONTEXT = `
@@ -313,12 +344,16 @@
         function initializeApplication() {
             populateDeviceLists();
             loadBrowserVoices();
+            initializeSpeechRecognition();
 
+            // "Bomb-proof" TMI.js loader
             const tmiCheckInterval = setInterval(() => {
                 if (typeof window.tmi !== 'undefined' && window.tmi.Client) { 
                     clearInterval(tmiCheckInterval);
                     twitchConnectBtn.disabled = false;
                     console.log("TMI.js is loaded and ready.");
+                } else {
+                    console.log("Waiting for TMI.js to load...");
                 }
             }, 250);
         }
@@ -348,7 +383,7 @@
                 const selectedVoice = englishVoices.find(v => v.name === savedVoiceName);
                 
                 if (savedVoiceName && selectedVoice) {
-                    casterVoiceSelect.value = selectedVoice.textContent; // Match the text content
+                    casterVoiceSelect.value = selectedVoice.textContent;
                 } else if (englishVoices.length > 0) {
                     let defaultVoice = englishVoices.find(v => v.name.includes('Google') && v.lang.includes('en-GB')) || 
                                        englishVoices.find(v => v.name.includes('Google') && v.lang.includes('en-US')) || 
@@ -372,7 +407,6 @@
 
         // --- Device and Settings Persistence ---
         function loadSettings() {
-            // NEW: Load API Key
             const savedApiKey = localStorage.getItem('fortniteCasterApiKey');
             if (savedApiKey) {
                 apiKeyInput.value = savedApiKey;
@@ -381,6 +415,7 @@
 
             const savedVideo = localStorage.getItem('fortniteCasterVideo');
             const savedAudio = localStorage.getItem('fortniteCasterAudio');
+            // const savedMic = localStorage.getItem('fortniteCasterMic'); // Removed
             const savedGameMode = localStorage.getItem('fortniteCasterGameMode') || 'builds';
             const savedTwitchChannel = localStorage.getItem('fortniteCasterTwitchChannel');
 
@@ -390,13 +425,15 @@
             if (savedAudio && Array.from(audioSelect.options).some(opt => opt.value === savedAudio)) {
                 audioSelect.value = savedAudio;
             }
+            // if (savedMic && Array.from(micInputSelect.options).some(opt => opt.value === savedMic)) { // Removed
+            //     micInputSelect.value = savedMic;
+            // }
             if (savedTwitchChannel) {
                 twitchChannelInput.value = savedTwitchChannel;
             }
             
             gameModeSelect.value = savedGameMode;
 
-            // NEW: Save API Key on change
             apiKeyInput.onchange = () => {
                 currentApiKey = apiKeyInput.value;
                 localStorage.setItem('fortniteCasterApiKey', currentApiKey);
@@ -404,17 +441,20 @@
 
             videoSelect.onchange = () => localStorage.setItem('fortniteCasterVideo', videoSelect.value);
             audioSelect.onchange = () => localStorage.setItem('fortniteCasterAudio', audioSelect.value);
+            // micInputSelect.onchange = () => localStorage.setItem('fortniteCasterMic', micInputSelect.value); // Removed
             gameModeSelect.onchange = () => localStorage.setItem('fortniteCasterGameMode', gameModeSelect.value);
             twitchChannelInput.onchange = () => localStorage.setItem('fortniteCasterTwitchChannel', twitchChannelInput.value);
         }
 
         async function populateDeviceLists() {
             try {
+                // Request permissions for both audio and video
                 await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 
                 videoSelect.innerHTML = '<option value="">-- Select Camera/Screen --</option>';
                 audioSelect.innerHTML = '<option value="">-- System Default --</option>';
+                // micInputSelect.innerHTML = '<option value="">-- Select Microphone --</option>'; // Removed
 
                 devices.forEach(device => {
                     const option = document.createElement('option');
@@ -425,13 +465,21 @@
                         videoSelect.appendChild(option);
                     } else if (device.kind === 'audiooutput') {
                         audioSelect.appendChild(option);
-                    }
+                    } 
+                    // We no longer populate the mic list as it's not usable by STT
+                    // else if (device.kind === 'audioinput') {
+                    //     micInputSelect.appendChild(option);
+                    // }
                 });
-                loadSettings(); // Load settings *after* populating lists
+                loadSettings();
             } catch (err) {
                 console.error("Error enumerating devices:", err);
+                if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                    alert("Permissions for camera and microphone are required to use this app.");
+                }
                 videoSelect.innerHTML = '<option value="">Permission required</option>';
                 audioSelect.innerHTML = '<option value="">Permission required</option>';
+                // micInputSelect.innerHTML = '<option value="">Permission required</option>'; // Removed
             }
         }
 
@@ -473,7 +521,7 @@
             commentaryText.textContent = "Playing test sound...";
 
             try {
-                await playTextWithSpeechSynthesis(TEST_AUDIO_TEXT);
+                await playTextWithSpeechSynthesis(TEST_AUDIO_TEXT, 'game'); // Use 'game' source for styling
                 commentaryText.textContent = "Test sound played. Check your audio output.";
             } catch (error) {
                 console.error("Audio test failed:", error);
@@ -584,12 +632,123 @@
             chatFeedBox.scrollTop = chatFeedBox.scrollHeight;
         }
 
+        // --- Speech-to-Text (STT) ---
+        function initializeSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                micStatus.textContent = "STT not supported by this browser.";
+                micToggleBtn.disabled = true;
+                return;
+            }
+
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.continuous = true;
+            speechRecognition.interimResults = true; // Show interim results for live feedback
+
+            speechRecognition.onstart = () => {
+                isListeningToMic = true;
+                micToggleBtn.textContent = "Stop Listening";
+                micToggleBtn.classList.remove("btn-secondary");
+                micToggleBtn.classList.add("btn-danger");
+                micStatus.textContent = "Listening... (Using System Default Mic)";
+                micStatus.className = "text-xs text-center status-connected mt-1";
+            };
+
+            speechRecognition.onend = () => {
+                isListeningToMic = false;
+                micToggleBtn.textContent = "Start Listening to Mic";
+                micToggleBtn.classList.remove("btn-danger");
+                micToggleBtn.classList.add("btn-secondary");
+                micStatus.textContent = "Mic is Idle. (Uses System Default Mic)";
+                micStatus.className = "text-xs text-center text-gray-500 mt-1";
+                
+                // "Bomb-proof" toggle: Only restart if the user *wants* us to be listening
+                if (userWantsToListen) {
+                    console.log("STT ended, auto-restarting...");
+                    setTimeout(() => {
+                        try { speechRecognition.start(); } catch(e) { console.error("STT restart failed", e); }
+                    }, 100);
+                }
+            };
+
+            speechRecognition.onerror = (event) => {
+                 // "Bomb-proof" fix: "no-speech" is not a fatal error.
+                if (event.error === 'no-speech') {
+                    console.log("STT: No speech detected, will restart if needed.");
+                    // This is normal, STT will restart on 'onend' if userWantsToListen
+                    return; 
+                }
+
+                console.error("Speech recognition error:", event.error);
+                micStatus.textContent = `Mic Error: ${event.error}`;
+                micStatus.className = "text-xs text-center status-disconnected mt-1";
+                isListeningToMic = false; // Ensure state is correct
+            };
+
+            speechRecognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                // Update the STT text box with interim (live) results
+                sttText.textContent = interimTranscript || '...';
+
+                // Process the final transcript
+                if (finalTranscript.trim().length > 3) {
+                    console.log("Streamer said:", finalTranscript);
+                    sttText.textContent = finalTranscript;
+                    if(isStreaming) { // Only send to AI if stream is active
+                        processStreamerComment(finalTranscript);
+                    }
+                }
+            };
+        }
+
+        window.toggleMicListening = function() {
+            if (!speechRecognition) {
+                alert("Speech Recognition is not supported by your browser.");
+                return;
+            }
+            
+            // This is the fix for the `no-speech` error.
+            // We must ask for permission *again* right before starting.
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    // We don't need to *use* the stream, just get permission.
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    if (isListeningToMic) {
+                        userWantsToListen = false; // User *intends* to stop
+                        speechRecognition.stop();
+                    } else {
+                        userWantsToListen = true; // User *intends* to start
+                        try {
+                            speechRecognition.start();
+                        } catch(e) {
+                            console.error("Mic start failed", e);
+                            micStatus.textContent = "Mic Error: Could not start.";
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error("Mic permission error:", err);
+                    alert("Failed to get mic permission. Please allow microphone access.");
+                    micStatus.textContent = "Mic Error: Permission Denied.";
+                });
+        };
+
         // --- Stream Control (Decoupled Loops, Instant Speech) ---
         window.startStream = async function() {
             if (isStreaming || !isCameraActive) return;
 
-            // NEW: Check for API Key
-            if (!currentApiKey) {
+            if (!getApiKey(false)) { // Check for key without throwing error
                 alert("Please enter your Gemini API Key in the setup box first.");
                 casterBox.classList.add('caster-box-error');
                 commentaryText.textContent = "[FATAL ERROR] API Key is missing. Stream stopped.";
@@ -597,9 +756,10 @@
             }
 
             try {
+                // "Warm up" the speech engine on the user's click
                 window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
             } catch (e) {
-                console.error("SpeechSynthesis resume failed:", e);
+                console.error("SpeechSynthesis warmup failed:", e);
                 alert("Could not start audio. Please click the page and try again.");
                 return;
             }
@@ -608,9 +768,12 @@
             isAudioLoopRunning = true;
             startBtn.disabled = true;
             stopBtn.disabled = false;
+            // Don't enable mic button, it's independent
+            
             casterBox.classList.remove('caster-box-error');
             commentaryText.textContent = "Stream started. Analyzing first frame...";
             
+            // Start all three loops
             runGameLoop();
             runAudioLoop();
             runChatReactionLoop();
@@ -648,8 +811,7 @@
                 }
             } catch (error) {
                 console.error("Error in Chat Loop:", error);
-                commentaryText.textContent = `[CHAT AI ERROR] ${error.message}`;
-                casterBox.classList.add('caster-box-error');
+                console.error(`[CHAT AI ERROR] ${error.message}`);
             }
 
             if (isStreaming) {
@@ -664,15 +826,19 @@
                 const { text, source } = audioQueue.shift(); 
                 
                 try {
+                    // Always show AI text in the main box
                     commentaryText.textContent = text;
-                    casterBox.classList.remove('caster-box-error');
+                    // Set style based on who is "talking"
+                    casterBox.classList.remove('caster-box-error', 'caster-box-active', 'caster-box-chat', 'caster-box-streamer');
                     if (source === 'chat') {
                         casterBox.classList.add('caster-box-chat');
+                    } else if (source === 'streamer') {
+                        casterBox.classList.add('caster-box-streamer');
                     } else {
                         casterBox.classList.add('caster-box-active');
                     }
                 
-                    await playTextWithSpeechSynthesis(text);
+                    await playTextWithSpeechSynthesis(text, source);
 
                 } catch (error) {
                     console.error("Error in Audio Loop (Speech):", error);
@@ -695,13 +861,15 @@
             if (chatLoopId) clearTimeout(chatLoopId); 
             if (audioLoopId) clearTimeout(audioLoopId);
 
+            // Note: We don't stop the STT (mic) loop, it's independent
+            
             window.speechSynthesis.cancel();
             
             startBtn.disabled = false;
             stopBtn.disabled = true;
             commentaryText.textContent = "Stream stopped. Camera feed is still active.";
             loadingIndicator.classList.add('hidden');
-            casterBox.classList.remove('caster-box-active', 'caster-box-chat');
+            casterBox.classList.remove('caster-box-active', 'caster-box-chat', 'caster-box-streamer');
             
             audioQueue = [];
             chatMessageHistory = [];
@@ -709,6 +877,7 @@
 
         // --- Core Processors ---
         async function processFrameForCommentary() {
+            // Don't analyze game frame if AI is busy talking
             if (window.speechSynthesis.speaking) return; 
             
             loadingIndicator.classList.remove('hidden');
@@ -729,6 +898,7 @@
             loadingIndicator.classList.add('hidden');
             
             if (commentary.text) {
+                // Add to *end* of queue
                 audioQueue.push({ text: commentary.text, source: 'game' });
             }
         }
@@ -740,7 +910,21 @@
             const reactionText = await generateChatReaction(chatMessages);
             
             if (reactionText) {
+                // Add to *end* of queue
                 audioQueue.push({ text: reactionText, source: 'chat' });
+            }
+        }
+        
+        async function processStreamerComment(transcript) {
+            const reactionText = await generateStreamerReaction(transcript);
+            if (reactionText) {
+                // Add to the *front* of the queue to make it the next thing spoken
+                audioQueue.unshift({ text: reactionText, source: 'streamer' });
+                
+                // Immediately interrupt any game analysis that might be speaking
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                }
             }
         }
 
@@ -751,6 +935,7 @@
                 hiddenCanvas.height = gameScreenVideo.videoHeight;
                 const ctx = hiddenCanvas.getContext('2d');
                 ctx.drawImage(gameScreenVideo, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                // Use JPEG with quality 0.7 for speed
                 return hiddenCanvas.toDataURL('image/jpeg', 0.7);
             } catch (e) {
                 console.error("Frame capture error:", e);
@@ -759,10 +944,9 @@
         }
 
         // --- Instant Audio Function ---
-        async function playTextWithSpeechSynthesis(textToSpeak) {
+        async function playTextWithSpeechSynthesis(textToSpeak, source) {
             return new Promise((resolve, reject) => {
                 if (window.speechSynthesis.speaking) {
-                    // This should theoretically be caught by the loop, but as a failsafe:
                     console.warn("SpeechSynthesis was already speaking. Cancelling.");
                     window.speechSynthesis.cancel(); 
                 }
@@ -780,27 +964,43 @@
                     }
                 }
                 
+                // Note: We cannot route browser speech synth to a specific audio output.
+                // It will *always* use the system/browser default audio output.
+                // The "Audio Output" dropdown is only for reference or for apps
+                // that use <audio> elements (which we are not, for speed).
+                
                 utterance.pitch = 1.2;
                 utterance.rate = 1.1;
 
+                // Adjust rate/pitch based on source for more personality
+                if (source === 'game') {
+                    utterance.rate = 1.15; // Faster for game hype
+                } else if (source === 'chat') {
+                    utterance.pitch = 1.1;
+                } else if (source === 'streamer') {
+                    utterance.rate = 1.0; // More conversational
+                    utterance.pitch = 1.1;
+                }
+
+
                 utterance.onend = () => {
-                    casterBox.classList.remove('caster-box-active', 'caster-box-chat');
+                    casterBox.classList.remove('caster-box-active', 'caster-box-chat', 'caster-box-streamer');
                     resolve();
                 };
                 utterance.onerror = (e) => {
                     console.error("SpeechSynthesis error:", e);
-                    casterBox.classList.remove('caster-box-active', 'caster-box-chat');
-                    if (e.error === 'interrupted') {
-                        console.warn("Speech was interrupted (likely by Stop button).");
-                        resolve(); // Resolve rather than reject on a normal interruption
+                    casterBox.classList.remove('caster-box-active', 'caster-box-chat', 'caster-box-streamer');
+                    if (e.error === 'interrupted' || e.error === 'canceled') {
+                        console.warn("Speech was interrupted (normal).");
+                        resolve(); // Not a fatal error
                     } else {
                         reject(new Error(`SpeechSynthesis error: ${e.error}`));
                     }
                 };
                 
-                // Failsafe: Clear queue if it's stuck
+                // "Bomb-proof" clear and speak
                 window.speechSynthesis.cancel();
-                setTimeout(() => window.speechSynthesis.speak(utterance), 50); // Small delay to ensure cancel clears
+                setTimeout(() => window.speechSynthesis.speak(utterance), 50);
             });
         }
 
@@ -856,19 +1056,39 @@
             `;
         }
 
-        // NEW: Function to check for API key
-        function getApiKey() {
+        function getStreamerReactionSystemPrompt(transcript) {
+            return `
+                You are an AI co-host, casting a game with a human streamer.
+                The streamer just said: "${transcript}"
+                Your job is to provide a brief, supportive, or witty co-host reaction (10-15 words MAX).
+                Do NOT just repeat what they said. Add to the conversation.
+                Be fun and conversational.
+                
+                Respond ONLY with your reaction.
+                Example (if streamer says "I'm healing up"): "Good call, that was a close one!"
+                Example (if streamer says "Oh no, I missed the shot!"): "Ah, you'll get the next one! He's still close!"
+                Example (if streamer says "Let's push this team"): "I'm with you! Let's go!"
+            `;
+        }
+
+
+        function getApiKey(throwError = true) {
             if (!currentApiKey) {
-                stopStream(); // Stop the stream
-                casterBox.classList.add('caster-box-error');
-                commentaryText.textContent = "[FATAL ERROR] API Key is missing. Stream stopped.";
-                throw new Error("FATAL_AUTH_ERROR: API Key is missing.");
+                if (throwError) {
+                    stopStream();
+                    casterBox.classList.add('caster-box-error');
+                    commentaryText.textContent = "[FATAL ERROR] API Key is missing. Stream stopped.";
+                    throw new Error("FATAL_AUTH_ERROR: API Key is missing.");
+                }
+                return null;
             }
             return currentApiKey;
         }
 
         async function generateCommentary(base64Image, gameMode, focusArea) {
-            const apiKey = getApiKey(); // Get key or throw error
+            const apiKey = getApiKey();
+            if (!apiKey) return { text: null };
+            
             const systemPrompt = getCasterSystemPrompt(gameMode, focusArea);
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
@@ -914,12 +1134,14 @@
                 }
             } catch (error) {
                 console.error("Gemini Commentary API Call Failed:", error);
-                throw error; // Re-throw to be caught by the loop
+                throw error;
             }
         }
 
         async function generateChatReaction(messages) {
-            const apiKey = getApiKey(); // Get key or throw error
+            const apiKey = getApiKey();
+            if (!apiKey) return null;
+            
             const systemPrompt = getChatSystemPrompt(messages);
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
@@ -953,7 +1175,48 @@
                 return text || null;
             } catch (error) {
                 console.error("Gemini Chat Reaction API Call Failed:", error);
-                throw error; // Re-throw to be caught by the loop
+                throw error;
+            }
+        }
+        
+        async function generateStreamerReaction(transcript) {
+            const apiKey = getApiKey();
+            if (!apiKey) return null;
+            
+            const systemPrompt = getStreamerReactionSystemPrompt(transcript);
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [ { text: "React to the streamer." } ]
+                    }
+                ],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error(`FATAL_AUTH_ERROR: Streamer AI HTTP error! status: ${response.status}. Check your API Key.`);
+                    }
+                    throw new Error(`Streamer AI HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                return text || null;
+            } catch (error) {
+                console.error("Gemini Streamer Reaction API Call Failed:", error);
+                throw error;
             }
         }
     </script>
